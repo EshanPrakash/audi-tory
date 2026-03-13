@@ -1,0 +1,5 @@
+venv/
+*.mp3
+test_bedrock.py
+test_polly.py
+test_s3.py
