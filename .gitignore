@@ -1,4 +1,5 @@
 venv/
+.env
 *.mp3
 test_bedrock.py
 test_polly.py

@@ -1,11 +1,17 @@
+from dotenv import load_dotenv
+import os
 import boto3
 import json
 
-s3 = boto3.client("s3", region_name="us-east-1")
-bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
-polly = boto3.client("polly", region_name="us-east-1")
+load_dotenv()
 
-BUCKET = "audi-tory-uploads"
+AWS_REGION = os.getenv("AWS_REGION")
+BUCKET = os.getenv("S3_BUCKET")
+MODEL_ID = os.getenv("BEDROCK_MODEL_ID")
+
+s3 = boto3.client("s3", region_name=AWS_REGION)
+bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+polly = boto3.client("polly", region_name=AWS_REGION)
 
 # Sample notes to test with
 notes = """
@@ -16,13 +22,23 @@ This process occurs in the chloroplasts of plant cells.
 
 # Step 1: Transform notes with Bedrock
 response = bedrock.invoke_model(
-    modelId="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    modelId=MODEL_ID,
     body=json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 512,
         "messages": [{
             "role": "user",
-            "content": f"Transform these notes into a short, engaging podcast script:\n\n{notes}"
+            "content": f"""Transform these notes into a short, engaging podcast script.
+
+STRICT RULES:
+- Output ONLY the words to be spoken, nothing else.
+- No section labels, headers, or stage directions (no "INTRO:", "HOST:", "OUTRO:", "[pause]", etc.).
+- No meta-commentary, no descriptions of tone, no formatting — just pure spoken sentences.
+- Write in a natural, conversational tone as if one person is casually explaining the topic to a friend.
+- Do not start with "Welcome" or "Hello everyone" — just dive into the content.
+
+Notes:
+{notes}"""
         }]
     })
 )
@@ -33,7 +49,8 @@ print("Script generated:\n", script)
 audio_response = polly.synthesize_speech(
     Text=script,
     OutputFormat="mp3",
-    VoiceId="Joanna"
+    VoiceId="Joanna",
+    Engine="neural"
 )
 audio_file = "pipeline_output.mp3"
 with open(audio_file, "wb") as f:
