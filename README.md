@@ -7,8 +7,8 @@ Turn your notes into audio. Upload a PDF or paste text, get an MP3 back in under
 ## Table of Contents
 - [Usage](#usage)
 - [Quick Start (Local)](#quick-start-local)
-- [Overview](#overview)
-- [Pipeline](#pipeline)
+- [App Overview](#app-overview)
+- [Backend Pipeline](#backend-pipeline)
 
 ---
 
@@ -103,7 +103,7 @@ cd backend
 
 ---
 
-## Overview
+## App Overview
 
 ### What You Can Do
 
@@ -130,7 +130,7 @@ audi-tory takes your notes and turns them into a generated audio file:
 ---
 
 
-## Pipeline
+## Backend Pipeline
 
 The core pipeline lives in `backend/pipeline.py` and runs as four steps:
 
