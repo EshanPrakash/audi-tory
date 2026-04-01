@@ -5,9 +5,9 @@ set -e
 FUNCTION_NAME="audi-tory-pipeline"
 ROLE_NAME="audi-tory-lambda-role"
 API_NAME="audi-tory-api"
-REGION="us-east-1"
 RUNTIME="python3.11"
 
+REGION=$(grep AWS_REGION ../.env | cut -d '=' -f2)
 S3_BUCKET=$(grep S3_BUCKET ../.env | cut -d '=' -f2)
 BEDROCK_MODEL_ID=$(grep BEDROCK_MODEL_ID ../.env | cut -d '=' -f2)
 
