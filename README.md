@@ -8,7 +8,6 @@ Turn your notes into audio. Upload a PDF or paste text, get an MP3 back in under
 - [Usage](#usage)
 - [Quick Start (Local)](#quick-start-local)
 - [Overview](#overview)
-- [Architecture](#architecture)
 - [Pipeline](#pipeline)
 
 ---
@@ -130,33 +129,6 @@ audi-tory takes your notes and turns them into a generated audio file:
 
 ---
 
-## Architecture
-
-```
-React (Vercel)
-    ↓  PDF (base64) or plain text + style/length/voice
-API Gateway (HTTP API)
-    ↓
-AWS Lambda (Python 3.11)
-    ├── PDF text extraction (pypdf)
-    ├── Script generation (AWS Bedrock — Claude Haiku)
-    └── Audio synthesis (Amazon Polly neural TTS → S3)
-    ↓
-Presigned S3 URL (1 hour expiry)
-    ↓
-React → user plays or downloads MP3
-```
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React + Vite, hosted on Vercel |
-| API | AWS API Gateway (HTTP API) |
-| Backend | AWS Lambda (Python 3.11) |
-| AI | AWS Bedrock — Claude Haiku |
-| TTS | Amazon Polly (neural voices) |
-| Storage | Amazon S3 |
-
----
 
 ## Pipeline
 
