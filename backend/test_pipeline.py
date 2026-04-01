@@ -1,22 +1,14 @@
-from dotenv import load_dotenv
-import os
-import boto3
-import json
-import time
+# local test runner for the pipeline
+# usage:
+#   python test_pipeline.py
+#   python test_pipeline.py --notes black_holes --style podcast --length medium
+#   python test_pipeline.py --pdf /path/to/notes.pdf --style concepts --length short
+#   python test_pipeline.py --pdf /path/to/notes.pdf --voice Joanna
 
-load_dotenv()
+import argparse
+from pipeline import run_pipeline, run_pipeline_from_pdf
 
-AWS_REGION = os.getenv("AWS_REGION")
-BUCKET = os.getenv("S3_BUCKET")
-MODEL_ID = os.getenv("BEDROCK_MODEL_ID")
-LOCAL_OUTPUT_PATH = os.getenv("LOCAL_OUTPUT_PATH")
-
-s3 = boto3.client("s3", region_name=AWS_REGION)
-bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
-polly = boto3.client("polly", region_name=AWS_REGION)
-
-# --- Sample notes ---
-sample_notes = {
+SAMPLE_NOTES = {
     "photosynthesis": """
 Photosynthesis is the process by which plants convert sunlight into energy.
 Chlorophyll is the pigment inside plant cells that absorbs light — mostly red and blue wavelengths, reflecting green, which is why plants look green.
@@ -49,123 +41,29 @@ Epictetus, born a slave, emphasized that no one can take away your inner freedom
 """,
 }
 
-# --- Prompt configuration ---
-style_instructions = {
-    "podcast": (
-        "Transform these notes into a natural, conversational podcast script. "
-        "Write as if one person is casually explaining the topic to a friend. "
-        "Expand on ideas, add flow between points, and make it engaging."
-    ),
-    "readback": (
-        "Read back these notes clearly and faithfully. "
-        "Do not add extra commentary or expand beyond what is written. "
-        "Preserve the original meaning and order of the notes."
-    ),
-    "concepts": (
-        "Identify the core concepts in these notes and explain each one in depth. "
-        "Start with 'These notes cover the following core concepts:' and then go through each concept by name, "
-        "followed by a thorough explanation of what it is, how it works, and why it matters. "
-        "Do not cover anything outside of the core concepts, but for each concept go as deep as needed."
-    ),
-}
 
-length_instructions = {
-    "short": (
-        "Write approximately 200 words. Cover only the most essential points."
-    ),
-    "medium": (
-        "Write approximately 800 words. "
-        "Do not just restate the notes — actively expand on them. "
-        "Add context, real-world examples, and analogies to reach the word count."
-    ),
-    "long": (
-        "Write approximately 1800 words. "
-        "Go deep. Elaborate extensively on every point, add examples, counterpoints, historical context, and analogies. "
-        "Use the notes as a starting point, not a ceiling — the output should be significantly longer than the input."
-    ),
-}
+def main():
+    parser = argparse.ArgumentParser(description="Test the audi-tory pipeline locally.")
+    parser.add_argument("--pdf", help="Path to a PDF file to process")
+    parser.add_argument(
+        "--notes",
+        choices=list(SAMPLE_NOTES),
+        default="photosynthesis",
+        help="Sample notes to use if no PDF provided (default: photosynthesis)",
+    )
+    parser.add_argument("--style", choices=["podcast", "readback", "concepts"], default="concepts")
+    parser.add_argument("--length", choices=["short", "medium", "long"], default="short")
+    parser.add_argument("--voice", default="Matthew", help="Polly neural voice (default: Matthew)")
+    args = parser.parse_args()
 
-max_tokens_map = {
-    "short": 400,
-    "medium": 1200,
-    "long": 2500,
-}
+    if args.pdf:
+        url = run_pipeline_from_pdf(args.pdf, args.style, args.length, args.voice)
+    else:
+        notes = SAMPLE_NOTES[args.notes]
+        url = run_pipeline(notes, args.style, args.length, args.voice)
 
-# --- Pipeline configuration (change these to test different combinations) ---
-notes = sample_notes["photosynthesis"]
-style = "concepts"   # "podcast" | "readback" | "concepts"
-length = "long"      # "short" | "medium" | "long"
-voice = "Matthew"     # any Polly neural voice, e.g. "Matthew", "Joanna", "Ruth"
+    print(f"\nDone! Download URL (valid 1 hour):\n{url}")
 
-# Step 1: Transform notes with Bedrock
-concepts_length_instructions = {
-    "short": "Always start by listing all the concepts upfront as instructed. Then for each concept, write one to two sentences — just the essential definition, nothing more.",
-    "medium": "Always start by listing all the concepts upfront as instructed. Then for each concept, write a detailed paragraph covering what it is, how it works, and why it matters.",
-    "long": "Always start by listing all the concepts upfront as instructed. Then for each concept, go as deep as the concept demands — multiple paragraphs if the concept warrants it.",
-}
 
-if style == "readback":
-    length_instruction = ""
-elif style == "concepts":
-    length_instruction = concepts_length_instructions[length]
-else:
-    length_instruction = length_instructions[length]
-prompt = f"""{style_instructions[style]} {length_instruction}
-
-STRICT RULES:
-- Output ONLY the words to be spoken, nothing else.
-- No section labels, headers, or stage directions (no "INTRO:", "HOST:", "OUTRO:", "[pause]", etc.).
-- No meta-commentary, no descriptions of tone, no formatting — just pure spoken sentences.
-- Do not start with "Welcome" or "Hello everyone" — just dive into the content.
-
-Notes:
-{notes}"""
-
-max_tokens = max_tokens_map["medium"] if style == "readback" else max_tokens_map[length]
-response = bedrock.invoke_model(
-    modelId=MODEL_ID,
-    body=json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": max_tokens,
-        "messages": [{
-            "role": "user",
-            "content": prompt
-        }]
-    })
-)
-script = json.loads(response["body"].read())["content"][0]["text"]
-print("Script generated:\n", script)
-
-# Step 2 & 3: Convert script to audio with Polly and store directly in S3
-local_output = LOCAL_OUTPUT_PATH
-s3_key_prefix = "pipeline_output"
-task = polly.start_speech_synthesis_task(
-    Text=script,
-    OutputFormat="mp3",
-    VoiceId=voice,
-    Engine="neural",
-    OutputS3BucketName=BUCKET,
-    OutputS3KeyPrefix=s3_key_prefix,
-)
-task_id = task["SynthesisTask"]["TaskId"]
-print(f"Polly task started: {task_id}")
-
-max_polls = 40
-for poll in range(max_polls):
-    status = polly.get_speech_synthesis_task(TaskId=task_id)["SynthesisTask"]["TaskStatus"]
-    print(f"Status: {status}")
-    if status == "completed":
-        output_uri = polly.get_speech_synthesis_task(TaskId=task_id)["SynthesisTask"]["OutputUri"]
-        s3_key = output_uri.split(f"{BUCKET}/")[1]
-        break
-    if status == "failed":
-        raise RuntimeError("Polly task failed")
-    if poll == max_polls - 1:
-        raise RuntimeError("Polly task timed out after 2 minutes")
-    time.sleep(3)
-
-# Download the output from S3 to local file
-if os.path.exists(local_output):
-    os.remove(local_output)
-s3.download_file(BUCKET, s3_key, local_output)
-print(f"Pipeline complete. Audio saved to {local_output} ({os.path.getsize(local_output)} bytes)")
+if __name__ == "__main__":
+    main()

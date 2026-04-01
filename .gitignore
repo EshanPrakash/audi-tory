@@ -1,6 +1,32 @@
+# python
 venv/
+__pycache__/
+*.pyc
+
+# environment variables
 .env
+
+# aws / local test artifacts
 *.mp3
 test_bedrock.py
 test_polly.py
 test_s3.py
+
+# node
+node_modules/
+dist/
+dist-ssr/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.sw?
