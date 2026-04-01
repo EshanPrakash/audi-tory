@@ -1,6 +1,6 @@
 # audi-tory
 
-Turn your notes into audio. Upload a PDF or paste text, get an MP3 back in under 30 seconds.
+Notes-to-audio web app built on React and AWS. PDF or plain text in, MP3 out in ~20–30 seconds.
 
 **Live App**: https://audi-tory.vercel.app
 
