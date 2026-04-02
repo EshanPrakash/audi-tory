@@ -33,9 +33,9 @@ Visit **https://audi-tory.vercel.app** and:
 
 | Length | Target | Best for |
 |--------|--------|----------|
-| `Short` | ~200 words | Quick review, dense notes |
+| `Short` | ~200 words | Quick review, sparse notes |
 | `Medium` | ~800 words | Standard study session |
-| `Long` | ~1800 words | Deep dive, sparse notes |
+| `Long` | ~1800 words | Deep dive, dense notes |
 
 ### Voices
 
